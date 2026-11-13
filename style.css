@@ -22,7 +22,7 @@ h1{font-size:46px;letter-spacing:.2em;margin:0;line-height:1}h1 span{font-size:7
 .obj{display:flex;gap:6px;flex:none}.obj img{height:72px;border-radius:5px;display:block;box-shadow:0 2px 6px #000a}
 .obj.merged{position:relative;width:52px;height:72px;margin-top:36px;margin-bottom:0}.obj.merged .ms{position:absolute;inset:0}.obj.merged .lead{position:absolute;left:0;top:-36px;z-index:2}
 .evt{font-size:clamp(15px,4.2vw,19px);text-align:center;background:#0005;border:2px solid #e0a82e88;border-radius:10px;padding:8px 14px;max-width:min(360px,60vw);line-height:1.25}.evt b{color:var(--gold);font-size:.8em;text-transform:uppercase;letter-spacing:.08em}.evt small{opacity:.85;font-size:.78em}
-#hint{text-align:center;font-size:12px;opacity:.75;padding:2px 8px}
+#hint{text-align:center;font-size:12px;opacity:.75;padding:2px 8px;height:20px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #realm{flex:1;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(#3b2d22,#2a2019);border-top:1px solid #0008;border-bottom:1px solid #0008}
 #ri{position:relative;flex:none}.pc{position:absolute;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px #000b;background:#ddd}.pc img,.mc img,.deck img{width:100%;height:100%;display:block;object-fit:cover}
 .pc.pend{box-shadow:0 8px 22px #000d,0 0 0 3px var(--gold);z-index:5}
@@ -51,7 +51,7 @@ table{width:100%;border-collapse:collapse;margin:6px 0 10px}td{padding:3px 4px;b
 .x{position:sticky;float:right;top:0;background:#0006;border:0;font-size:28px;border-radius:8px;width:40px;height:40px}
 #toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:#000d;padding:10px 16px;border-radius:20px;opacity:0;transition:.25s;pointer-events:none;z-index:90;font-size:14px;max-width:90vw;text-align:center}#toast.on{opacity:1;transform:translate(-50%,0)}
 @media(min-width:900px){#objs .obj img{height:110px}.obj.merged{width:80px;height:110px;margin-top:55px}.obj.merged .lead{top:-55px}.ib span{display:inline}}
-@media(max-width:520px){.ib.ok span{display:none}.ib.ok{min-width:46px}.chip{font-size:12px;padding:6px 9px}}
+
 
 #rb{position:fixed;inset:0;z-index:85;background:#000d;display:flex;align-items:center;justify-content:center;padding:8px}
 .rbv{display:flex;flex-direction:column;width:100%;max-width:760px;height:100%;background:var(--dark);border-radius:14px;padding:10px}
@@ -67,3 +67,12 @@ table{width:100%;border-collapse:collapse;margin:6px 0 10px}td{padding:3px 4px;b
 @media(max-height:700px){#hint{display:none}.obj img{height:54px!important}.obj.merged{width:39px!important;height:54px!important;margin-top:27px!important}.obj.merged .lead{top:-27px!important}.evt{padding:4px 10px}}
 
 .pc.pend{touch-action:none;cursor:grab;user-select:none}
+
+#actbar{display:flex;gap:10px;padding:6px 10px 8px;background:#1b130e;border-top:1px solid #fff1}
+#actbar .ib{flex:1;height:52px;font-size:17px}#actbar .ib.ok{flex:2.2;font-size:19px}
+#realm{position:relative;touch-action:none}
+.pc img,.mc img,.deck img,.obj img{pointer-events:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.mc,.pc,.deck,.obj{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+#fit{position:fixed;z-index:20;width:38px;height:38px;border-radius:50%;border:1px solid #fff4;background:#000a;font-size:20px;color:#fff;padding:0}
+@media(min-width:900px){#game{grid-template-rows:auto auto 1fr auto auto auto;grid-template-areas:"hud hud" "hint hint" "objs realm" "objs market" "objs store" "objs act"}#actbar{grid-area:act}}
+#actbar .ib span{white-space:nowrap}#actbar .ib:not(.ok){font-size:15px;flex:1.2}

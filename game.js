@@ -1,4 +1,5 @@
 'use strict';
+let LAY={a:0},FREEZE=null,VIEW={z:1,tx:0,ty:0,supp:0};
 let g=null,U={stack:[],acts:[],pendEnd:false,placeSnap:null,placeIdx:0,locked:false},opts={mm:false,l:[],useMs:true};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -15,7 +16,7 @@ function newGame(o){
  for(let i=0;i<2;i++){g.market.push(g.dd.shift(),g.wd.shift())}
  const pool=shuffle(Object.keys(LEADERS).filter(k=>o.l.includes(+k[1])));
  if(pool.length>=2){g.lead={id:pool[0],key:LEADERS[pool[0]][0]};const m=back(pool[1]);g.msc={id:m,key:MILESTONES[m][0],met:false}}
- U={stack:[],acts:[],pendEnd:false,placeSnap:null,placeIdx:0,locked:false};
+ U={stack:[],acts:[],pendEnd:false,placeSnap:null,placeIdx:0,locked:false};VIEW={z:1,tx:0,ty:0,supp:0};
  $('#menu').hidden=true;$('#game').hidden=false;render();
 }
 /* ---------- realm helpers ---------- */
@@ -189,7 +190,7 @@ function render(){if(!g)return;const sc=scoreOf(g);
  $('#bUndoT').disabled=!U.stack.length;$('#bOk').disabled=!g.pend;
  const narrow=innerWidth<700,mcw=narrow?Math.floor((innerWidth-34)/3):Math.min(210,Math.floor(innerWidth*.14));
  document.documentElement.style.setProperty('--cw',mcw+'px');
- const hint=g.phase==='over'?'Game over':g.pend?'Tap glowing blocks to activate them, then Confirm. Drag the card to move it, or onto the Market to take it back':g.phase==='draw'?'Tap a deck to add a card to the Market':'Drag a card from the Market into your realm';$('#hint').textContent=hint;
+ const hint=g.phase==='over'?'Game over':g.pend?'Tap glowing blocks to activate · drag the card to move or return it':g.phase==='draw'?'Tap a deck to add a card to the Market':'Drag a card from the Market into your realm';$('#hint').textContent=hint;
  const evk=ev(g);
  const deck=(k,arr)=>{const top=arr[0];const img=top?(k==='district'?back(top)+'_back':back(g.wd[0])+'_back'):null;
   return`<div class="deck ${g.phase==='draw'&&arr.length&&g.need>0?'draw':''}" data-deck="${k}">${img?`<img src="${IMG}${img}.webp" draggable="false">`:'<div class="empty">empty</div>'}<i>${arr.length}</i><em>${k==='district'?(evk?EV[back(g.dd[0])][1]:'No event'):'Wonders'}</em></div>`};
@@ -202,6 +203,8 @@ function render(){if(!g)return;const sc=scoreOf(g);
  renderRealm();if(g.phase==='over')showResults()}
 function renderRealm(){const box=$('#realm'),[a0,z0]=range(g);let a=a0,z=z0;if(!g.realm.length){a=0;z=2}
  if(g.pend){a=Math.min(a,g.pend.s);z=Math.max(z,g.pend.s+2)}
+ if(FREEZE){a=Math.min(a,FREEZE.a);z=Math.max(z,FREEZE.z)}
+ LAY.a=a;
  const n=z-a+1,PAD=1.5,W=box.clientWidth-8,H=box.clientHeight-8;
  let bw=Math.min(W/(n+2*PAD),(H/2.16)*1047/752/3,115);bw=Math.max(bw,12);BW=bw;HC=bw*3*752/1047;
  const x0=s=>(s-a+PAD)*BW,ry=HC*1.08,tw=(n+2*PAD)*BW;
@@ -211,7 +214,7 @@ function renderRealm(){const box=$('#realm'),[a0,z0]=range(g);let a=a0,z=z0;if(!
  if(g.pend){const p=g.pend;h+=`<div class="pc pend" data-hi="${p.id}_front" style="left:${x0(p.s)}px;top:${HC*.04}px;width:${3*BW}px;height:${HC}px"><img src="${IMG}${p.id}_front.webp" draggable="false"></div>`;
   const T=tops(g),seen=new Set();for(let i=0;i<3;i++){const s=p.s+i,e=T.get(s);if(!e)continue;const b=bAt(e,s),k=e.id+b.x;if(seen.has(k))continue;seen.add(k);
    const v={e,b,s0:e.s+b.x,w:b.w,k},inf=actInfo(v);h+=`<button class="act ${inf.done?'done':inf.err?'no':'ok'}" data-k="${k}" style="left:${x0(v.s0)}px;top:${ry}px;width:${v.w*BW}px;height:${HC}px">${inf.done?'✓':inf.err?'':(inf.cost?`-${inf.cost}${ic('gold')}`:'▶')}</button>`}}
- h+='<div class="ghost-pc" id="gh" hidden></div></div>';box.innerHTML=h}
+ h+='<div class="ghost-pc" id="gh" hidden></div></div>';box.innerHTML=h;applyView()}
 function showResults(){const sc=scoreOf(g),L=leaderEval(g),m=$('#modal');m.hidden=false;
  m.innerHTML=`<div class="box wide"><h2>${L&&L.win?'Victory!':'Game Over'}</h2><div class="big">${sc.tot} <span>${rank(sc.tot)}</span></div>
  <table>${sc.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
@@ -223,32 +226,33 @@ function zoom(hi){const z=$('#zoom');z.hidden=false;z.innerHTML=`<img src="${IMG
 /* ---------- input ---------- */
 let drag=null;
 function slotAt(x){const ri=$('#ri');if(!ri)return null;const r=ri.getBoundingClientRect(),R=$('#realm').getBoundingClientRect();if(x<R.left||x>R.right)return null;
- if(!g.realm.length)return 0;const[a,z]=range(g);return Math.max(a-3,Math.min(z+1,Math.round((x-r.left)/BW-3)+a))}
+ if(!g.realm.length)return 0;const[a,z]=range(g);return Math.max(a-3,Math.min(z+1,Math.round((x-r.left)/(BW*VIEW.z)-3)+LAY.a))}
 document.addEventListener('pointerdown',e=>{const pc=e.target.closest('.pc.pend');
  if(pc&&g&&g.phase==='play'&&g.pend&&$('#modal').hidden){drag={from:'pend',id:g.pend.id,i:U.placeIdx,oldS:g.pend.s,x:e.clientX,y:e.clientY,on:false,s:null,el:pc};return}
- const c=e.target.closest('.mc');if(c&&g&&g.phase==='play'&&!g.pend&&$('#modal').hidden){
-  drag={id:c.dataset.id,i:+c.dataset.i,x:e.clientX,y:e.clientY,on:false,s:null,el:c};drag.t=setTimeout(()=>{if(drag&&!drag.on){zoom(drag.id+'_front');drag=null}},550)}
- else if(c){zoom(c.dataset.id+'_front')}});
-document.addEventListener('pointermove',e=>{if(!drag)return;if(!drag.on&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8){
+ const c=e.target.closest('.mc');
+ if(c&&g)drag={id:c.dataset.id,i:+c.dataset.i,x:e.clientX,y:e.clientY,on:false,s:null,el:c,noplace:!(g.phase==='play'&&!g.pend&&$('#modal').hidden)}});
+document.addEventListener('pointermove',e=>{if(!drag||drag.noplace)return;if(!drag.on&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8){
   if(drag.from==='pend'){if(U.locked){toast('You traded after placing - use Reset turn to take the card back');drag=null;return}
-   if(U.acts.length)toast('Card lifted: activations cleared');g=JSON.parse(U.placeSnap);U.acts=[];render();drag.el=null}
+   if(U.acts.length)toast('Card lifted: activations cleared');{const[a0,z0]=range(g);let fa=a0,fz=z0;if(!g.realm.length){fa=0;fz=2}FREEZE={a:Math.min(fa,g.pend.s),z:Math.max(fz,g.pend.s+2)}}g=JSON.parse(U.placeSnap);U.acts=[];render();drag.el=null}
   drag.on=true;clearTimeout(drag.t);
   const f=document.createElement('img');f.id='fly';f.src=IMG+drag.id+'_front.webp';f.style.width=BW*3+'px';document.body.append(f);drag.el&&drag.el.classList.add('lift')}
  if(!drag.on)return;e.preventDefault();const f=$('#fly');f.style.left=e.clientX-BW*1.5+'px';f.style.top=e.clientY-HC/2+'px';
  const rr=$('#realm').getBoundingClientRect(),over=e.clientY>rr.top-HC*.4&&e.clientY<rr.bottom;const gh=$('#gh');
- if(over){const s=slotAt(e.clientX,drag.id);drag.s=s;const ok=s!==null&&legal(drag.id,s)&&affordable(drag.id),[a]=range(g);
+ if(over){const s=slotAt(e.clientX,drag.id);drag.s=s;const ok=s!==null&&legal(drag.id,s)&&affordable(drag.id),a=LAY.a;
   gh.hidden=false;gh.className='ghost-pc '+(ok?'ok':'bad');gh.style.cssText=`left:${(s-a+1.5)*BW}px;top:${HC*1.08}px;width:${3*BW}px;height:${HC}px;background-image:url(${IMG+drag.id}_front.webp)`;drag.ok=ok;
   }
  else{gh.hidden=true;drag.s=null;drag.ok=false}},{passive:false});
 document.addEventListener('pointerup',e=>{if(!drag)return;clearTimeout(drag.t);const d=drag;drag=null;const f=$('#fly');if(f)f.remove();if(d.el&&d.el.isConnected)d.el.classList.remove('lift');
  if(!d.on){zoom(d.id+'_front');return}const gh=$('#gh');if(gh)gh.hidden=true;
+ FREEZE=null;
  if(d.from==='pend'){if(d.s!==null&&d.s!==undefined&&d.ok)place(d.id,d.i,d.s);
   else if(d.s!==null&&d.s!==undefined){toast(legal(d.id,d.s)?'You cannot afford that wonder':'Cannot place there - card put back');place(d.id,d.i,d.oldS)}
-  else toast('Card returned to the Market');return}
+  else{toast('Card returned to the Market');render()}return}
  if(d.s!==null&&d.s!==undefined){if(d.ok)place(d.id,d.i,d.s);else if(!legal(d.id,d.s))toast('Cannot place there (wonders cannot be covered)');else toast('You cannot afford that wonder')}});
-document.addEventListener('keydown',e=>{if(!g)return;if(e.key==='Escape'){if(drag){drag=null;$('#fly')?.remove()}$('#zoom').hidden=true}
+document.addEventListener('keydown',e=>{if(!g)return;if(e.key==='Escape'){if(drag){drag=null;FREEZE=null;$('#fly')?.remove()}$('#zoom').hidden=true}
  if(e.key==='Enter'&&g.pend)confirmPlace();if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undoTurn()}});
-document.addEventListener('click',e=>{const t=e.target;if(!g)return;
+document.addEventListener('click',e=>{const t=e.target;if(!g)return;if(performance.now()<VIEW.supp)return;
+ if(t.closest('#fit')){VIEW.z=1;VIEW.tx=0;VIEW.ty=0;applyView();return}
  const a=t.closest('.act');if(a){const v=vis(g).find(x=>x.k===a.dataset.k);if(v)activate(v);return}
  const dk=t.closest('.deck.draw');if(dk){draw(dk.dataset.deck);return}
  if(t.closest('#bOk'))confirmPlace();else if(t.closest('#bUndoT'))undoTurn();
@@ -287,3 +291,22 @@ function rulebook(p){const m=$('#rb');m.hidden=false;p=Math.max(1,Math.min(8,p))
  m.onclick=e=>{const b=e.target.closest('[data-pg]');if(b&&!b.disabled)return rulebook(+b.dataset.pg);if(e.target.closest('[data-x]')||e.target===m)m.hidden=true};
  let sx=null;m.ontouchstart=e=>sx=e.touches[0].clientX;m.ontouchend=e=>{if(sx===null)return;const d=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(d)>60)rulebook(p+(d<0?1:-1))}}
 addEventListener('keydown',e=>{const m=$('#rb');if(!m||m.hidden)return;const p=+m.dataset.p;if(e.key==='ArrowRight')rulebook(p+1);if(e.key==='ArrowLeft')rulebook(p-1);if(e.key==='Escape')m.hidden=true});
+
+/* ---------- realm zoom / pan ---------- */
+function applyView(){const ri=$('#ri'),R=$('#realm');if(!ri)return;const z=VIEW.z,w=ri.offsetWidth*z,h=ri.offsetHeight*z,lx=ri.offsetLeft,ly=ri.offsetTop;
+ VIEW.tx=w<=R.clientWidth?(R.clientWidth-w)/2-lx:Math.min(-lx,Math.max(R.clientWidth-w-lx,VIEW.tx));
+ VIEW.ty=h<=R.clientHeight?(R.clientHeight-h)/2-ly:Math.min(-ly,Math.max(R.clientHeight-h-ly,VIEW.ty));
+ ri.style.transformOrigin='0 0';ri.style.transform=`translate(${VIEW.tx}px,${VIEW.ty}px) scale(${z})`;
+ const f=$('#fit');f.hidden=z<=1.01;if(!f.hidden){const b=R.getBoundingClientRect();f.style.left=(b.right-46)+'px';f.style.top=(b.top+8)+'px'}}
+function zoomAt(px,py,z2){const ri=$('#ri');if(!ri)return;z2=Math.max(1,Math.min(5,z2));const r=ri.getBoundingClientRect(),z=VIEW.z,ux=(px-r.left)/z,uy=(py-r.top)/z;
+ VIEW.z=z2;VIEW.tx+=(px-ux*z2)-r.left;VIEW.ty+=(py-uy*z2)-r.top;applyView()}
+const PT=new Map();let G0=null;
+$('#realm').addEventListener('wheel',e=>{if(!g)return;e.preventDefault();zoomAt(e.clientX,e.clientY,VIEW.z*Math.exp(-e.deltaY*.002))},{passive:false});
+$('#realm').addEventListener('pointerdown',e=>{if(!g||e.target.closest('.pc.pend'))return;PT.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY});
+ if(!G0)G0={moved:false,d:0};if(PT.size>=2){const[a,b]=[...PT.values()];G0.d=Math.hypot(a.x-b.x,a.y-b.y)}});
+document.addEventListener('pointermove',e=>{const p=PT.get(e.pointerId);if(!p||!g||!G0)return;const px=p.x,py=p.y;p.x=e.clientX;p.y=e.clientY;
+ if(PT.size>=2){const[a,b]=[...PT.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(G0.d)zoomAt((a.x+b.x)/2,(a.y+b.y)/2,VIEW.z*d/G0.d);G0.d=d;G0.moved=true}
+ else if(VIEW.z>1.01&&(G0.moved||Math.hypot(e.clientX-p.x0,e.clientY-p.y0)>8)){G0.moved=true;VIEW.tx+=e.clientX-px;VIEW.ty+=e.clientY-py;applyView()}});
+const endPT=e=>{if(!PT.has(e.pointerId))return;PT.delete(e.pointerId);if(G0&&G0.moved)VIEW.supp=performance.now()+350;if(PT.size<2&&G0)G0.d=0;if(!PT.size)G0=null};
+document.addEventListener('pointerup',endPT);document.addEventListener('pointercancel',endPT);
+document.addEventListener('contextmenu',e=>{if(e.target.closest('#game'))e.preventDefault()});
